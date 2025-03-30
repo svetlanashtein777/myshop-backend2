@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Загрузка товаров</title>
+</head>
+<body>
+    <h2>Добавить товар</h2>
+    <form id="uploadForm">
+        <input type="file" id="imageInput" accept="image/*" required>
+        <input type="number" id="priceInput" placeholder="Цена" required>
+        <button type="submit">Добавить</button>
+    </form>
+
+    <h2>Галерея товаров</h2>
+    <div id="gallery"></div>
+
+    <script>
+        document.getElementById("uploadForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append("image", document.getElementById("imageInput").files[0]);
+            formData.append("price", document.getElementById("priceInput").value);
+
+            const response = await fetch("http://localhost:3000/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+            if (data.imageUrl) {
+                const gallery = document.getElementById("gallery");
+                const item = document.createElement("div");
+                item.innerHTML = `<img src="http://localhost:3000${data.imageUrl}" width="150"><p>${data.price} руб.</p>`;
+                gallery.appendChild(item);
+            }
+        });
+    </script>
+</body>
+</html>
