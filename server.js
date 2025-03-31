@@ -50,7 +50,7 @@ const Product = mongoose.model('Product', new mongoose.Schema({
 app.post('/api/products', upload.single('image'), async (req, res) => {
     try {
         const { name, price, image } = req.body;
-        const uploadedImage = req.file ? req.file.path : image; // Если загрузили файл — берем его URL
+        const uploadedImage = req.file ? req.file.path : image;
 
         if (!name || !price || !uploadedImage) {
             return res.status(400).json({ error: "Все поля (name, price, image) обязательны!" });
@@ -77,6 +77,6 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-// ✅ Запуск сервера
+// ✅ Запуск сервера (исправлено!)
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Сервер запущен: http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Сервер запущен на порту ${PORT}`));
