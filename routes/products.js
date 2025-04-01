@@ -1,8 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const Product = require('../models/Product'); // Импортируем модель
+const multer = require('multer');
+const Product = require('../models/Product');
+const cloudinary = require('cloudinary').v2;
+const dotenv = require('dotenv');
 
-// Получить все товары
+dotenv.config();
+
+// Настройка Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Настройка Multer для обработки файлов
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// ✅ Получить все товары
 router.get('/', async (req, res) => {
     try {
         const products = await Product.find({}, { createdAt: 0, updatedAt: 0 }); // Исключаем createdAt и updatedAt
@@ -12,34 +28,46 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Добавить новый товар
-router.post('/', async (req, res) => {
+// ✅ Добавить новый товар с загрузкой изображения
+router.post('/', upload.single('image'), async (req, res) => {
     try {
-        console.log('📥 Полученные данные:', req.body); // Логирование для отладки
+        console.log('📥 Полученные данные:', req.body);
 
-        const { imageUrl, name, description, price } = req.body;
-
-        if (!imageUrl || !name || !description || !price) {
-            return res.status(400).json({ message: 'Все поля (imageUrl, name, description, price) обязательны!' });
+        const { name, description, price } = req.body;
+        if (!req.file || !name || !description || !price) {
+            return res.status(400).json({ message: 'Все поля (изображение, name, description, price) обязательны!' });
         }
 
-        const newProduct = new Product({ imageUrl, name, description, price });
-        await newProduct.save();
+        // Загрузка изображения в Cloudinary
+        const result = await cloudinary.uploader.upload_stream({ resource_type: 'image' }, async (error, result) => {
+            if (error) {
+                console.error('❌ Ошибка загрузки изображения в Cloudinary:', error);
+                return res.status(500).json({ message: 'Ошибка загрузки изображения' });
+            }
 
-        // Убираем createdAt и updatedAt перед отправкой
-        const { createdAt, updatedAt, ...productData } = newProduct.toObject();
+            // Создание нового товара
+            const newProduct = new Product({
+                imageUrl: result.secure_url,
+                name,
+                description,
+                price
+            });
 
-        res.status(201).json(productData);
+            await newProduct.save();
+            res.status(201).json(newProduct);
+        });
+
+        result.end(req.file.buffer); // Передаем файл в Cloudinary
     } catch (error) {
         console.error('❌ Ошибка при создании товара:', error);
         res.status(500).json({ message: 'Ошибка при создании товара', error });
     }
 });
 
-// Получить товар по ID
+// ✅ Получить товар по ID
 router.get('/:id', async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id, { createdAt: 0, updatedAt: 0 }); // Исключаем createdAt и updatedAt
+        const product = await Product.findById(req.params.id, { createdAt: 0, updatedAt: 0 });
         if (!product) {
             return res.status(404).json({ message: 'Товар не найден' });
         }
@@ -49,7 +77,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Удалить товар по ID
+// ✅ Удалить товар по ID
 router.delete('/:id', async (req, res) => {
     try {
         const product = await Product.findByIdAndDelete(req.params.id);
